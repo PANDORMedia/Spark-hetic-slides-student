@@ -28,25 +28,25 @@
 
 ## 2. Pipeline (bronze -> silver -> gold)
 
-
-```
-
+```text
 brut (bronze, 4 CSV) ➔ nettoyé (silver, Parquet unifié) ➔ agrégé (gold, 3 requêtes cibles)
 
 ```
 
-- **Nettoyage appliqué** :
-  * **Nettoyage des chaînes de caractères** : Utilisation de `F.regexp_replace` pour purger les espaces insécables masqués (caractères blancs de séparation) au sein des colonnes d'identifiants critiques comme `id_vehicule` et `id_usager`.
-  * **Correction géospatiale** : Remplacement des virgules par des points dans les chaînes de coordonnées avant le transtypage en `DoubleType`.
-  * **Filtrage des valeurs aberrantes** : Isolation des années de naissance cohérentes (`an_nais` entre 1900 et 2024) et exclusion des codes de gravité non spécifiés (`grav != -1`).
-  * **Gestion de l'unicité** : Dédoublonnage via `dropDuplicates(["Num_Acc", "id_vehicule", "id_usager"])` pour obtenir le grain le plus fin sans sur-comptage lors des jointures.
+* **Nettoyage appliqué** :
+* **Nettoyage des chaînes de caractères** : Utilisation de `F.regexp_replace` pour purger les espaces insécables masqués (caractères blancs de séparation) au sein des colonnes d'identifiants critiques comme `id_vehicule` et `id_usager`.
+* **Correction géospatiale** : Remplacement des virgules par des points dans les chaînes de coordonnées avant le transtypage en `DoubleType`.
+* **Filtrage des valeurs aberrantes** : Isolation des années de naissance cohérentes (`an_nais` entre 1900 et 2024) et exclusion des codes de gravité non spécifiés (`grav != -1`).
+* **Gestion de l'unicité** : Dédoublonnage via `dropDuplicates(["Num_Acc", "id_vehicule", "id_usager"])` pour obtenir le grain le plus fin sans sur-comptage lors des jointures.
 
-- **Statistiques des volumes** :
-  * **Lignes usagers brutes globales** : 125 789
-  * **Lignes usagers écartées lors des filtres de cohérence initiaux** : 2 598 lignes.
-  * **Lignes après jointure large et nettoyage final (Silver)** : 125 829 (Le léger delta avec le fichier usager initial provient de l'alignement combinatoire de la jointure relationnelle avec l'entité véhicules).
 
-- **Partitionnement de la silver** : La couche Silver a été écrite en Parquet sur le disque en appliquant un partitionnement par département : `.partitionBy("dep")`. Le département présente une cardinalité idéale (~100 modalités) et constitue le filtre de prédilection des analystes locaux. Cela active le mécanisme de **Partition Pruning** (élagage des partitions) lors des requêtes spatiales, évitant un scan complet du jeu de données.
+* **Statistiques des volumes** :
+* **Lignes usagers brutes globales** : 125 789
+* **Lignes usagers écartées lors des filtres de cohérence initiaux** : 2 598 lignes.
+* **Lignes après jointure large et nettoyage final (Silver)** : 125 829 (Le léger delta avec le fichier usager initial provient de l'alignement combinatoire de la jointure relationnelle avec l'entité véhicules).
+
+
+* **Partitionnement de la silver** : La couche Silver a été écrite en Parquet sur le disque en appliquant un partitionnement par département : `.partitionBy("dep")`. Le département présente une cardinalité idéale (~100 modalités) et constitue le filtre de prédilection des analystes locaux. Cela active le mécanisme de **Partition Pruning** (élagage des partitions) lors des requêtes spatiales, évitant un scan complet du jeu de données.
 
 ---
 
@@ -54,8 +54,9 @@ brut (bronze, 4 CSV) ➔ nettoyé (silver, Parquet unifié) ➔ agrégé (gold, 
 
 ### Analyse 1 - Agrégation (Météo vs Gravité)
 
-- **Question** : Les conditions météorologiques ont-elles un impact direct sur la proportion d'accidents graves ?
-- **Code clé** :
+* **Question** : Les conditions météorologiques ont-elles un impact direct sur la proportion d'accidents graves ?
+* **Code clé** :
+
 ```python
 analyse_meteo = (
     df_silver.withColumn("meteo", weather_desc)
@@ -72,7 +73,7 @@ analyse_meteo = (
 
 * **Résultat** :
 
-```
+```text
 +-------------------+---------------+----+--------------------+----------------+
 |meteo              |total_impliques|tues|blesses_hospitalises|taux_gravite_pct|
 +-------------------+---------------+----+--------------------+----------------+
@@ -112,7 +113,7 @@ analyse_vehicule = (
 
 * **Résultat** :
 
-```
+```text
 +------------------------+---------------+----+--------------------+----------------+
 |categorie_vehicule      |total_impliques|tues|blesses_hospitalises|taux_gravite_pct|
 +------------------------+---------------+----+--------------------+----------------+
@@ -149,7 +150,7 @@ top_departements = (
 
 * **Résultat** :
 
-```
+```text
 +----+---+------------+----+
 |mois|dep|nb_accidents|rang|
 +----+---+------------+----+
@@ -218,7 +219,5 @@ En observant le plan physique via `.explain()`, on remarque que le `BroadcastHas
 2. **Modélisation Prédictive (MLlib)** : Implémenter un algorithme de classification (ex: *Random Forest*) pour tenter de prédire l'indice de gravité (`grav`) d'un accident à partir de facteurs explicatifs comportementaux et structurels (vitesse maximale autorisée, présence de ceintures/casques, météo).
 
 
-
-```
 
 ```
